@@ -1,0 +1,705 @@
+
+import axios
+    from
+    'axios'
+
+
+
+export
+    const instance
+        = axios.create({
+
+            baseURL: process.env.REACT_APP_APIROOT,
+
+            timeout:
+            30000,
+
+            headers: {
+
+                'Accept':
+                'application/json, text/plain, */*',
+
+                'Content-Type':
+                'application/json',
+
+                'withCredentials':
+                true,
+
+                'Authorization':
+                'frank.hong'
+
+            }
+
+        });
+
+
+
+
+import {
+    instance
+        as api
+}
+    from
+    '../utilis/axios'
+
+
+
+
+
+export
+    const fetchPostsByCategory
+        = (categoryName)
+            => {
+
+            return (dispatch)
+                => {
+
+                dispatch({ type: ACTION.post.LOAD_POSTS_BY_CATEGORY_REQUEST })
+
+                api
+
+                    .get(categoryName
+                    +
+                    '/posts')
+
+                    .then((response)
+                        => response.data.filter((post => !post.deleted)))
+
+
+                    .then((response)
+                        => {
+
+                        dispatch({
+
+                            type: ACTION.post.LOAD_POSTS_BY_CATEGORY_SUCCESS,
+
+                            payload: {
+
+                                currentCategory: categoryName,
+
+                                posts: response
+
+                            }
+
+                        })
+
+                        response
+
+                            .map((post)
+                                => {
+
+                                return dispatch(getPostCommentsById(post.id))
+
+                            })
+
+                    })
+
+                    .catch(error
+                        => {
+
+                        return dispatch({
+                            type: ACTION.post.LOAD_POSTS_BY_CATEGORY_FAILURE,
+                            error
+                        });
+
+                    });
+
+            }
+
+        }
+
+
+
+
+
+
+export
+    const saveNewPost
+        = (newPost)
+            => {
+
+            return (dispatch)
+                => {
+
+                dispatch({ type: ACTION.post.SAVE_NEW_POST_REQUEST })
+
+                api
+
+                    .post('posts', newPost)
+
+                    .then((response)
+                        => {
+
+                        dispatch({
+                            type: ACTION.post.SAVE_NEW_POST_SUCCESS,
+                            payload: response.data
+                        });
+
+                    })
+
+                    .catch(error
+                        => {
+
+                        dispatch({
+                            type: ACTION.post.SAVE_NEW_POST_FAILURE,
+                            error
+                        });
+
+                    });
+
+            }
+
+        }
+
+
+
+
+
+
+import ACTION
+    from
+    '../constants'
+
+
+
+const postsReducer
+    = (state
+        = {
+
+            posts: [],
+
+            fetching:
+            false,
+
+            orderBy:
+            "voteScore",
+
+            order:
+            true
+            //false:Ascending order, true: Descending order
+
+        }, action) => {
+
+        let posts;
+
+        switch (action.type) {
+
+            case ACTION.post.LOAD_POSTS_BY_CATEGORY_SUCCESS:
+
+                return {
+
+                    ...state,
+
+                    currentCategory: action.payload.currentCategory,
+
+                    posts: action.payload.posts
+
+                }
+
+            case ACTION.post.LOAD_POSTS_BY_CATEGORY_FAILURE:
+
+                return state
+
+            case ACTION.post.LOAD_POSTS_SUCCESS:
+
+                return {
+
+                    currentCategory:
+                    undefined,
+
+                    ...state,
+
+                    posts: action.payload
+
+                }
+
+            case ACTION.post.LOAD_POSTS_FAILURE:
+
+                return state
+
+            case ACTION.post.CHANGE_POSTS_ORDERING:
+
+                let order
+                    = action.payload
+                        === state.orderBy
+
+                        ? (!state.order)
+
+                        :
+                        1
+
+                return {
+
+                    ...state,
+
+                    orderBy: action.payload,
+
+                    order: order
+
+                }
+
+
+
+            case ACTION.post.CHANGE_COMMENTS_ORDERING:
+
+                posts = state
+
+                    .posts
+
+                    .reduce((result, current)
+                        => {
+
+                        if (current.id
+                            === action.payload.id) {
+
+                            let previousOrderBy
+                                = current.commentsOrderBy;
+
+                            const commentsOrderBy
+                                = action.payload.orderBy
+
+                            const commentsOrder
+                                = action.payload.orderBy
+                                    === previousOrderBy
+
+                                    ? (!current.commentsOrder)
+
+                                    :
+                                    1
+
+                            return result.concat(Object.assign({},
+                                current, {
+
+                                    commentsOrderBy: commentsOrderBy,
+
+                                    commentsOrder: commentsOrder
+
+                                }))
+
+                        } else {
+
+                            return result.concat(current)
+
+                        }
+
+                    }, []);
+
+                return {
+
+                    ...state,
+
+                    posts: posts
+
+                }
+
+
+
+            case ACTION.post.LOAD_POST_COMMENTS_BY_ID_SUCCESS:
+
+                posts = state
+
+                    .posts
+
+                    .reduce((result, current)
+                        => {
+
+                        const defaultOrder
+                            = current.commentsOrder
+                                ===
+                                undefined
+
+                                ?
+                                1
+
+                                : current.commentsOrder
+
+                        const defaultOrderBy
+                            = current.commentsOrderBy
+                                ===
+                                undefined
+
+                                ?
+                                "voteScore"
+
+                                : current.commentsOrderBy
+
+                        if (current.id
+                            === action.payload.id) {
+
+                            return result.concat(Object.assign({},
+                                current, {
+
+                                    commentsOrder: defaultOrder,
+
+                                    commentsOrderBy: defaultOrderBy,
+
+                                    comments: action.payload.response
+
+                                }))
+
+                        } else {
+
+                            return result.concat(current)
+
+                        }
+
+                    }, []);
+
+                let currentPost
+                    = Object.assign({}, state.currentPost);
+
+                if (currentPost.id
+                    === action.payload.id) {
+
+                    currentPost.commentsOrder
+                        =
+                        "voteScore",
+
+                        currentPost.commentsOrderBy
+                        =
+                        1,
+
+                        currentPost.comments
+                        = action.payload.response
+
+                }
+
+
+
+                return {
+
+                    ...state,
+
+                    currentPost: currentPost,
+
+                    posts: posts
+
+
+
+                }
+
+            case ACTION.post.LOAD_POST_COMMENTS_BY_ID_FAILURE:
+
+                return state;
+
+
+
+            case ACTION.post.UPDATE_POST_SUCCESS:
+
+
+                posts = state
+
+                    .posts
+
+                    .reduce((result, current)
+                        => {
+
+                        if (current.id
+                            === action.payload.id) {
+
+                            return result.concat(action.payload)
+
+                        } else {
+
+                            return result.concat(current)
+
+                        }
+
+                    }, []);
+
+                return {
+
+                    ...state,
+
+                    posts: posts
+
+                }
+
+
+
+            case ACTION.post.UPDATE_POST_FAILURE:
+
+                return state;
+
+
+
+            case ACTION.post.SAVE_NEW_POST_SUCCESS:
+
+                posts = [...state.posts];
+
+                if (!state.currentCategory
+                    || state.currentCategory
+                    === action.payload.category) {
+
+                    posts.push(action.payload)
+
+                }
+
+                return {
+
+                    ...state,
+
+                    posts: posts
+
+                }
+
+            case ACTION.post.SAVE_NEW_POST_FAILURE:
+
+                return state;
+
+
+
+            case ACTION.post.VOTE_SUCCESS:
+
+                if (action.payload.type
+                    ===
+                    "post") {
+
+                    posts = state
+
+                        .posts
+
+                        .reduce((result, current)
+                            => {
+
+                            if (current.id
+                                === action.payload.data.id) {
+
+                                return result.concat({
+
+                                    ...current,
+
+                                    voteScore: action.payload.data.voteScore
+
+                                })
+
+                            } else {
+
+                                return result.concat(current)
+
+                            }
+
+                        }, []);
+
+                    return {
+
+                        ...state,
+
+                        posts: posts
+
+                    }
+
+                } else
+                    if (action.payload.type
+                        ===
+                        "comment") {
+
+                        posts = state
+
+                            .posts
+
+                            .reduce((result, current)
+                                => {
+
+                                if (current.id
+                                    === action.payload.data.parentId) {
+
+                                    //update comment vote in this post
+
+                                    let votedComment
+                                        = current
+
+                                            .comments
+
+                                            .reduce((cResult, pCurrent)
+                                                => {
+
+                                                if (pCurrent.id
+                                                    === action.payload.data.id) {
+
+                                                    return cResult.concat(action.payload.data)
+
+                                                } else {
+
+                                                    return cResult.concat(pCurrent)
+
+                                                }
+
+                                            }, []);
+
+                                    return result.concat({
+
+                                        ...current,
+
+                                        comments: votedComment
+
+                                    })
+
+                                } else {
+
+                                    return result.concat(current)
+
+                                }
+
+                            }, []);
+
+                        return {
+
+                            ...state,
+
+                            posts: posts
+
+                        }
+
+                    }
+
+                break;
+
+            case ACTION.post.DELETE_SUCCESS:
+
+                if (action.payload.type
+                    ===
+                    "post") {
+
+                    return {
+
+                        ...state,
+
+                        posts: state
+
+                            .posts
+
+                            .filter((post)
+                                => post.id
+                                !== action.payload.id)
+
+                    }
+
+                } else
+                    if (action.payload.type
+                        ===
+                        "comment") {
+
+
+
+                        let posts
+                            = state
+
+                                .posts
+
+                                .reduce((result, current)
+                                    => {
+
+                                    if (current.id
+                                        === action.payload.parentId) {
+
+                                        let remainedComments
+                                            = current
+
+                                                .comments
+
+                                                .reduce((cResult, pCurrent)
+                                                    => {
+
+                                                    if (pCurrent.id
+                                                        === action.payload.id) {
+
+                                                        return cResult
+
+                                                    } else {
+
+                                                        return cResult.concat(pCurrent)
+
+                                                    }
+
+                                                }, []);
+
+                                        return result.concat({
+
+                                            ...current,
+
+                                            comments: remainedComments
+
+                                        })
+
+                                    } else {
+
+                                        return result.concat(current)
+
+                                    }
+
+                                }, []);
+
+
+
+                        return {
+
+                            ...state,
+
+                            posts: posts
+
+                        }
+
+                    }
+
+                break;
+
+            case ACTION.post.LOAD_POST_BY_ID_REQUEST:
+
+                return {
+
+                    ...state,
+
+                    fetched:
+                    false,
+
+                    fetching:
+                    true
+
+                }
+
+            case ACTION.post.LOAD_POST_BY_ID_SUCCESS:
+
+                return {
+
+                    ...state,
+
+                    currentPost: action.payload,
+
+                    fetching:
+                    false,
+
+                    fetched:
+                    true
+
+                }
+
+            case ACTION.post.LOAD_POST_BY_ID_FAILURE:
+
+                return {
+
+                    ...state,
+
+                    currentPost:
+                    undefined,
+
+                    fetching:
+                    false,
+
+                    fetched:
+                    false
+
+                }
+
+            default:
+
+                return state;
+
+        }
+
+    }
+
+
+
+export
+    default postsReducer
