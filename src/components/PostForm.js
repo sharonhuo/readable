@@ -97,7 +97,7 @@ class PostForm extends Component {
                 isOpen={isOpen}
                 toggle={toggle}
             >
-                <ModalHeader>{this.state.id?'Update ':'New '}post</ModalHeader>
+                <ModalHeader toggle={toggle}>{this.state.id?'Update ':'New '}post</ModalHeader>
                 <ModalBody>
                     <form className="form-horizontal">
                         <div className="container">
